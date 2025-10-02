@@ -152,3 +152,50 @@ def post_checkout(body: CheckoutRequest):
         currency=q["currency"],
         mock_paid=True,
     )
+
+
+
+
+
+# --- Stripe Checkout (FastAPI) ---
+import os, stripe
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+router = APIRouter()
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+CHECKOUT_SUCCESS_URL = os.getenv("CHECKOUT_SUCCESS_URL", "https://ailex.phiogre.com/success")
+CHECKOUT_CANCEL_URL  = os.getenv("CHECKOUT_CANCEL_URL",  "https://ailex.phiogre.com/cancel")
+
+class CheckoutCreateBody(BaseModel):
+    amount_cents: int              # مبلغ به سنت (مثلاً 2000 برای $20)
+    product_name: str = "Ailex Plan"
+    quantity: int = 1
+    customer_email: str | None = None
+
+@router.post("/create-checkout")
+def create_checkout(body: CheckoutCreateBody):
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {"name": body.product_name},
+                    "unit_amount": body.amount_cents,
+                },
+                "quantity": body.quantity,
+            }],
+            mode="payment",
+            success_url=CHECKOUT_SUCCESS_URL + "?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=CHECKOUT_CANCEL_URL,
+            customer_email=body.customer_email,
+        )
+        return {"id": session.id, "url": session.url}
+    except Exception as e:
+        # برای اینکه در پرو‌د خطای 500 نگیریم
+        raise HTTPException(status_code=400, detail=str(e))
+
+# اگر قبلاً app = FastAPI() داری، مطمئن شو این روتر mount بشه:
+# app.include_router(router)
