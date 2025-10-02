@@ -199,3 +199,36 @@ def create_checkout(body: CheckoutCreateBody):
 
 # اگر قبلاً app = FastAPI() داری، مطمئن شو این روتر mount بشه:
 # app.include_router(router)
+
+
+
+
+
+
+
+from fastapi import Request
+
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")  # بعداً از Stripe Dashboard می‌گیری
+
+@router.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature")
+
+    try:
+        if STRIPE_WEBHOOK_SECRET:
+            event = stripe.Webhook.construct_event(
+                payload, sig, STRIPE_WEBHOOK_SECRET
+            )
+        else:
+            # فقط برای توسعه؛ در prod حتماً از secret استفاده کن
+            event = stripe.Event.construct_from(await request.json(), stripe.api_key)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        # TODO: اینجا اشتراک/سفارش را Paid کن، در DB ثبت کن و ایمیل بفرست
+        print("✅ Paid session:", session.get("id"))
+
+    return {"ok": True}
