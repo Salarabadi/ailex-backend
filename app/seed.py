@@ -2,6 +2,11 @@
 from app.db import SessionLocal
 from app import models
 
+
+# <-- این خط، جدول‌ها را اگر نبودند می‌سازد
+Base.metadata.create_all(bind=engine)
+
+
 def run():
     db = SessionLocal()
     try:
