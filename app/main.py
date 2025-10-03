@@ -232,3 +232,15 @@ async def stripe_webhook(request: Request):
         print("✅ Paid session:", session.get("id"))
 
     return {"ok": True}
+
+
+
+
+
+from fastapi import FastAPI
+from app import payment
+
+app = FastAPI()
+
+# اضافه کردن روت‌های پرداخت
+app.include_router(payment.router)
