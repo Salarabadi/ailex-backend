@@ -52,3 +52,26 @@ async def stripe_webhook(request: Request):
         print("Payment succeeded!", session)
 
     return {"status": "success"}
+
+
+
+
+@router.post("/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+    endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        # TODO: اینجا سفارش/اشتراک را Paid کن، DB به‌روزرسانی، ایمیل و...
+        print("✅ Payment succeeded:", session.get("id"))
+
+    return {"status": "success"}
